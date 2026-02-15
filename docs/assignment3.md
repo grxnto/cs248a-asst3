@@ -6,7 +6,7 @@ Please read the [top level README.md](../README.md) for instructions on how to s
 
 ## Migrate from Assignment 2
 
-This assignment builds upon the ray caster and texture functionality you implemented as part of last 2 assignments. To migrate your code from Assignment 2 to Assignment 3, please follow the migration guide in [asst2-migration-guide.md](./asst3-migration-guide.md). You need to change only 3 functions, and we've provided a script that takes path of your assignment 2 directory and copies the unmodified files directly to assignment 3.
+This assignment builds upon the ray caster and texture functionality you implemented as part of last 2 assignments. To migrate your code from Assignment 2 to Assignment 3, please follow the migration guide in [asst3-migration-guide.md](./asst3-migration-guide.md). You need to change only 3 functions, and we've provided a script that takes path of your assignment 2 directory and copies the unmodified files directly to assignment 3.
 
 ## Download 3D Models
 
