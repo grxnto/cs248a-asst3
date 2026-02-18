@@ -36,6 +36,41 @@ public float getLevel(float2 uv, RendererUniform uniforms, Triangle triangle, fl
 
     // TODO: Student implementation starts here.
     
+    float eps = 0.5 / float(uniforms.camera.canvasSize.y);
+    float2 dx = float2(eps, 0.0);
+    float2 dy = float2(0.0, eps);
+
+    // generate rays
+    Ray ray_px = uniforms.camera.generateRay(uv + dx);
+    Ray ray_nx = uniforms.camera.generateRay(uv - dx);
+    Ray ray_py = uniforms.camera.generateRay(uv + dy);
+    Ray ray_ny = uniforms.camera.generateRay(uv - dy);
+
+    // intersect rays
+    Optional<RayMeshIntersectionResult> hit_px = rayMeshIntersection(ray_px, uniforms);
+    Optional<RayMeshIntersectionResult> hit_nx = rayMeshIntersection(ray_nx, uniforms);
+    Optional<RayMeshIntersectionResult> hit_py = rayMeshIntersection(ray_py, uniforms);
+    Optional<RayMeshIntersectionResult> hit_ny = rayMeshIntersection(ray_ny, uniforms);
+
+    // get texture uvs
+    float2 tex_uvpx = hit_px.hasValue  ? triangle.getUV(triangle.calculateBarycentricCoord(ray_px.origin + hit_px.value.closestHit.t * ray_px.direction)) : tex_uv;
+    float2 tex_uvnx = hit_nx.hasValue  ? triangle.getUV(triangle.calculateBarycentricCoord(ray_nx.origin + hit_nx.value.closestHit.t * ray_nx.direction)) : tex_uv;
+    float2 tex_uvpy = hit_py.hasValue  ? triangle.getUV(triangle.calculateBarycentricCoord(ray_py.origin + hit_py.value.closestHit.t * ray_py.direction)) : tex_uv;
+    float2 tex_uvny = hit_ny.hasValue  ? triangle.getUV(triangle.calculateBarycentricCoord(ray_ny.origin + hit_ny.value.closestHit.t * ray_ny.direction)) : tex_uv;
+
+
+    // texture size
+    PhysicsBasedMaterial mat = uniforms.physicsBasedMaterialBuf[triangle.materialId];
+    float w = (float)mat.albedo.mipmap[0].size.x;
+    float h = (float)mat.albedo.mipmap[0].size.y;
+
+
+    float2 duv_dx = (tex_uvpx - tex_uvnx) * w;
+    float2 duv_dy = (tex_uvpy - tex_uvny) * h;
+    float max_sq = max(dot(duv_dx, duv_dx), dot(duv_dy, duv_dy));
+
+    return max(0.0, 0.5 * log2(max_sq));
+
     // TODO: Student implementation ends here.
 
     return level;

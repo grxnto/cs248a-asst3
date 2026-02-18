@@ -71,7 +71,28 @@ class MaterialField[T]:
         textures = [base_texture]
 
         # TODO: Student implementation starts here.
+        current = base_texture
 
+        for level in range(1, self.MAX_MIP_LEVELS):
+
+            # take height and width
+            h, w, c = current.shape
+
+            if h <= 1 or w <= 1:
+                break
+
+            # reduce to next level
+            new_h = h // 2
+            new_w = w // 2
+
+            cropped = current[: new_h * 2, : new_w * 2, :]
+            reshaped = cropped.reshape(new_h, 2, new_w, 2, c)
+
+            next_level = reshaped.mean(axis=(1, 3))
+            textures.append(next_level)
+
+            current = next_level
+            
         # TODO: Student implementation ends here.
 
         self.textures = textures
