@@ -28,16 +28,29 @@ public struct Triangle : IBoundingBox, IRayCastable
      */
     public float3 calculateBarycentricCoord(float3 p)
     {
-        const float EPSILON = 1e-6;
-        float u = 0.0;
-        float v = 0.0;
-        float w = 0.0;
+        float3 a = vertices[0];
+        float3 b = vertices[1];
+        float3 c = vertices[2];
 
-        // TODO: Student implementation starts here.
+        float3 v0 = b - a;
+        float3 v1 = c - a;
+        float3 v2 = p - a;
 
-        // TODO: Student implementation ends here.
+        float d00 = dot(v0, v0);
+        float d01 = dot(v0, v1);
+        float d11 = dot(v1, v1);
+        float d20 = dot(v2, v0);
+        float d21 = dot(v2, v1);
+
+        float denom = d00 * d11 - d01 * d01;
+
+        float v = (d11 * d20 - d01 * d21) / denom;
+        float w = (d00 * d21 - d01 * d20) / denom;
+        float u = 1.0 - v - w;
 
         return float3(u, v, w);
+
+        // TODO: Student implementation ends here.
     }
 
     public float2 getUV(float3 barycentricCoord)
@@ -48,7 +61,7 @@ public struct Triangle : IBoundingBox, IRayCastable
         float v = barycentricCoord.y;
         float w = barycentricCoord.z;
         uv = u * this.uvs[0] + v * this.uvs[1] + w * this.uvs[2];
-
+        
         return uv;
     }
 
@@ -78,7 +91,42 @@ public struct Triangle : IBoundingBox, IRayCastable
     public Optional<RayHitResult> hit(Ray ray)
     {
         // TODO: Student implementation starts here.
+        float EPSILON = 1e-3;
+        float EDGE_EPS = 1e-3;
+        float3 normal = normalize(cross((vertices[1] - vertices[0]), (vertices[2] - vertices[0])));
 
+        if (abs(dot(normal, normalize(ray.direction))) < EPSILON) {
+            // Ray is nearly parallel to triangle plane
+            return Optional<RayHitResult>();
+        }
+
+        // Intersecting point on triangle using equation from lecture
+        float t = (dot(normal, vertices[0]) - dot(normal, ray.origin)) / dot(normal, normalize(ray.direction));
+        if (t <= EPSILON) {
+            return Optional<RayHitResult>();
+        }
+        // compute intersection point of the plane
+        float3 x = ray.origin + t * ray.direction;
+        
+        // Normals of the plane made with an edge of the triangle and normal of triangle plane
+        float3 v0 = vertices[0];
+        float3 v1 = vertices[1];
+        float3 v2 = vertices[2];
+        float3 edge0 = v1 - v0;
+        float3 edge1 = v2 - v1;
+        float3 edge2 = v0 - v2;
+        float3 c0 = cross(edge0, x - v0);
+        float3 c1 = cross(edge1, x - v1);
+        float3 c2 = cross(edge2, x - v2);
+
+        // Dot our point minus vertice vector with the plane normal to determine which side. Plane
+        // normals point outward, so it must be less than or equal to zero.
+        if (dot(normal, c0) >= -EDGE_EPS && dot(normal, c1) >= -EDGE_EPS && dot(normal, c2) >= -EDGE_EPS) {
+            RayHitResult hitResult;
+            hitResult.normal = normal;
+            hitResult.t = t;
+            return Optional<RayHitResult>(hitResult);
+        }
         return Optional<RayHitResult>();
 
         // TODO: Student implementation ends here.

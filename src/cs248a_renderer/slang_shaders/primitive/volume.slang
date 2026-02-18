@@ -25,10 +25,49 @@ public struct Volume
     public Optional<RayHitResult> hit(Ray ray, SharedTexture3DBuffer<float4> volumeTexBuf)
     {
         // TODO: Student implementation starts here.
+        // transform ray into the world space
+        Ray local_ray = ray.transform(invModelMatrix);
 
-        // TODO: Student implementation ends here.
+        // bounding box intersections
+        float2 tBox = bound.hit(local_ray);
+        float tMin = tBox.x;
+        float tMax = tBox.y;
+
+        // return if ray misses the bounding box
+        if (tMax < tMin) {
+            return Optional<RayHitResult>();
+        }
+    
+        float t = tMin;
+        while (t <= tMax) {
+            // get point in world space to normalized screen space
+            float3 p = local_ray.origin + t * local_ray.direction;
+            float3 uvw = getUVW(p);
+
+            // sample from the volume for the density 
+            float density = volumeTexBuf.trilinearSample(tex, uvw).w;
+            if (density > DENSITY_THRESHOLD) {
+                    // estimate normal
+
+                    float gx = volumeTexBuf.trilinearSample(tex, uvw + float3(FINITE_DIFF_DELTA, 0, 0)).w - volumeTexBuf.trilinearSample(tex, uvw - float3(FINITE_DIFF_DELTA, 0, 0)).w;
+                    float gy = volumeTexBuf.trilinearSample(tex, uvw + float3(0, FINITE_DIFF_DELTA, 0)).w - volumeTexBuf.trilinearSample(tex, uvw - float3(0, FINITE_DIFF_DELTA, 0)).w;
+                    float gz = volumeTexBuf.trilinearSample(tex, uvw + float3(0, 0, FINITE_DIFF_DELTA)).w - volumeTexBuf.trilinearSample(tex, uvw - float3(0, 0, FINITE_DIFF_DELTA)).w;
+
+                    float3 local_normal = -normalize(float3(gx, gy, gz));
+                    float3 normal = normalize(mul((float3x3)modelMatrix, local_normal));
+                    // Transform normal to world space
+                    RayHitResult result;
+                    result.t = t;
+                    result.normal = normal;
+
+                    return Optional<RayHitResult>(result);
+            }
+            t += STEP_SIZE;
+        }
 
         return Optional<RayHitResult>();
+        // TODO: Student implementation ends here.
+
     }
 
     /**

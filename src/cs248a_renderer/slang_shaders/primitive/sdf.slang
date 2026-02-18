@@ -96,17 +96,22 @@ public struct SphereSDF : ISDF
     public float sdf(float3 point)
     {
         // TODO: Student implementation starts here.
-
-        return 0.0;
-
+        // transform point from world to object space
+        float3 local_point = mul(invModelMatrix, float4(point, 1.0)).xyz;
+        // find distance to surface, create radius from point to center, then subtract from sphere radius
+        return length(local_point - center) - radius;
         // TODO: Student implementation ends here.
     }
 
     public float3 normal(float3 point)
     {
         // TODO: Student implementation starts here.
-
-        return float3(0.0);
+        // transform point to object space
+        float3 local_point = mul(invModelMatrix, float4(point, 1.0)).xyz;
+        // compute normal
+        float3 local_normal = normalize(local_point - center);
+        // return to world space
+        return normalize(mul((float3x3)transpose(invModelMatrix), local_normal));;
 
         // TODO: Student implementation ends here.
     }
@@ -121,17 +126,31 @@ public struct CubeSDF : ISDF
     public float sdf(float3 point)
     {
         // TODO: Student implementation starts here.
+        // transform point from world space to object space
+        float3 local_point = mul(invModelMatrix, float4(point, 1.0)).xyz;
 
-        return 0.0;
+        // computes distance of point in object space
+        float3 d = abs(local_point) - size * 0.5;
 
+        // sum of the inside distance and outside distance to the cube with clamping of the cube
+        
+        return length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);;
         // TODO: Student implementation ends here.
     }
 
     public float3 normal(float3 point)
     {
         // TODO: Student implementation starts here.
+        float3 local_point = mul(invModelMatrix, float4(point, 1.0)).xyz;
+        
+        // approximate normal
+        float delta = 1e-3;
+        float dx = sdf(local_point + float3(delta, 0, 0)) - sdf(local_point - float3(delta, 0, 0));
+        float dy = sdf(local_point + float3(0, delta, 0)) - sdf(local_point - float3(0, delta, 0));
+        float dz = sdf(local_point + float3(0, 0, delta)) - sdf(local_point - float3(0, 0, delta));
 
-        return float3(0.0);
+        // return to world space
+        return normalize(mul((float3x3)transpose(invModelMatrix), normalize(float3(dx, dy, dz))));
 
         // TODO: Student implementation ends here.
     }

@@ -72,8 +72,6 @@ public float getLevel(float2 uv, RendererUniform uniforms, Triangle triangle, fl
     return max(0.0, 0.5 * log2(max_sq));
 
     // TODO: Student implementation ends here.
-
-    return level;
 }
 
 public PhysicsBasedParameters getHitPointParameters(float2 uv, RendererUniform uniforms, Triangle triangle, float3 normal, float3 barycentricCoord, float3 hitPoint)

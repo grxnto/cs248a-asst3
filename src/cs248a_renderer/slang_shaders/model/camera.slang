@@ -20,8 +20,15 @@ public struct Camera
     {
         // TODO: Student implementation starts here.
 
-        return Ray(float3(0.0), float3(0.0));  // Placeholder
+        // Convert uv to pixel coordinates centered at (0,0)
+        float2 pixel = (uv - 0.5) * float2(canvasSize);
 
+        // Ray in camera space
+        float3 origin = float3(0.0, 0.0, 0.0);
+        float3 direction = normalize(float3(pixel.x, pixel.y, -focalLength));
+
+        // Transform ray to world space
+        return Ray(origin, direction).transform(invViewMatrix);
         // TODO: Student implementation ends here.
     }
 }

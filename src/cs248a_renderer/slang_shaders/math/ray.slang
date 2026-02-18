@@ -24,8 +24,15 @@ public struct Ray
     public Ray transform(float4x4 matrix)
     {
         // TODO: Student implementation starts here.
-        
-        return this;
+        // No need to divide since transformation matrix is only rotation and translation
+
+        // Transform origin as a point
+        float3 new_origin = mul(matrix, float4(origin, 1.0)).xyz;
+
+        // Transform direction as a vector (no translation)
+        float3 new_direction = mul(matrix, float4(direction, 0.0)).xyz;
+
+        return Ray(new_origin, new_direction, tRange);
 
         // TODO: Student implementation ends here.
     }

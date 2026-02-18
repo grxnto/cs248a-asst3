@@ -96,6 +96,50 @@ public struct BVH<T>
 
         // TODO: Student implementation starts here.
 
+        // start at root and closest is infinity
+        stack.push(0);
+        float closest = float.maxValue;
+
+
+        // while stack is not empty, 
+        while(!stack.isEmpty()) {
+            // get node at the top
+            uint i = stack.pop();
+            BVHNode node = this.nodes[i];
+            if (i >= this.maxNodes) {
+                continue;
+            }
+
+            // get a hit of the node's bounding box, if there is a miss or farther than the closest then skip
+            float2 bb = node.bound.hit(ray);
+            if (bb.x > bb.y || bb.x > closest) {
+                continue;
+            }  
+
+            // if the node is a leaf node, intersect with all primitives in leaf node and update closest one
+            if (node.left == -1 && node.right == -1) {
+                for (int i = node.primLeft; i < node.primRight; i++) {
+                    Optional<RayHitResult> primitive_hit = this.primitives[i].hit(ray);
+                    if (primitive_hit.hasValue && primitive_hit.value.t < closest) {
+                        // if closer, 
+                        closest = primitive_hit.value.t;
+                        
+                        HitResult result;
+                        result.primitive = this.primitives[i];
+                        result.rayHitResult = primitive_hit.value;
+                        hitResult = Optional<HitResult>(result);
+                    }
+                }
+            }
+            else {
+                // push children onto stack
+                if (node.left != -1)
+                    stack.push((uint)node.left);
+                if (node.right != -1)
+                    stack.push((uint)node.right);
+            }
+
+        }
         // TODO: Student implementation ends here.
 
         return hitResult;

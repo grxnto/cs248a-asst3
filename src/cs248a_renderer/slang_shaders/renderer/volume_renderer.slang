@@ -3,8 +3,8 @@ implementing "../renderer.slang";
 import math;
 import texture;
 
-public static uint MAX_STEPS = 1024;
-public static float EPSILON = 1e-2;
+public static uint MAX_STEPS = 256;
+public static float EPSILON = 1e-6;
 
 public static float STEP_SIZE = 0.01;
 public static float DENSITY_SCALE = 5.0;
@@ -20,9 +20,22 @@ public static float DENSITY_SCALE = 5.0;
 public float4 volumeSample(float2 uv, RendererUniform uniforms, float tMax, float4 primColor)
 {
     // TODO: Student implementation starts here.
+    Ray ray = uniforms.camera.generateRay(uv);
+    float4 o = mul(uniforms.volume.invModelMatrix, float4(ray.origin, 1.0));
+    float4 d = mul(uniforms.volume.invModelMatrix, float4(ray.direction, 0.0));
+    ray.origin = o.xyz;
+    ray.direction = normalize(d.xyz);
 
-    return float4(1.0, 0.0, 1.0, 1.0);
-
+    // Call shared accumulation function
+    return accumulateColor<1024>(
+        ray,
+        uniforms.volume.bound,
+        MAX_STEPS,
+        STEP_SIZE,
+        DENSITY_SCALE,
+        primColor,
+        uniforms.volume.tex
+    );
     // TODO: Student implementation ends here.
 }
 
@@ -35,6 +48,30 @@ public float4 volumeSample(float2 uv, RendererUniform uniforms, float tMax, floa
 public void volumeSampleBwd(float2 uv, RendererUniform uniforms, float4 outGrad)
 {
     // TODO: Student implementation starts here.
+    // Reconstruct ray (same as forward)
+    Ray ray = uniforms.camera.generateRay(uv);
+    float4 o = mul(uniforms.volume.invModelMatrix, float4(ray.origin, 1.0));
+    float4 d = mul(uniforms.volume.invModelMatrix, float4(ray.direction, 0.0));
+    ray.origin = o.xyz;
+    ray.direction = normalize(d.xyz);
+
+    DifferentialPtrPair<DiffTexture3D<float, 4>> volPair = 
+    DifferentialPtrPair<DiffTexture3D<float, 4>>(
+        uniforms.volume.tex, 
+        uniforms.volume.dTex
+    );
+    // Call backward of accumulateColor
+    bwd_diff(accumulateColor<256>)(
+        ray,
+        uniforms.volume.bound,
+        MAX_STEPS,
+        STEP_SIZE,
+        DENSITY_SCALE,
+        uniforms.ambientColor, 
+        volPair,
+        outGrad
+    );
+
 
     // TODO: Student implementation ends here.
 }
@@ -62,8 +99,38 @@ public float4 accumulateColor<let N : uint>(
     DiffTexture3D<float, 4> data)
 {
     // TODO: Student implementation starts here.
+    // Intersect ray with volume
+    Optional<float2> tBox = volumeBound.hit(ray);
+    if (!tBox.hasValue) {
+        return backgroundColor;
+    }
 
-    return float4(1.0, 0.0, 1.0, 1.0);
+    float t = tBox.value.x;
+    float tEnd = tBox.value.y;
+    float3 color = float3(0.0, 0.0, 0.0);  // accumulated
+    float transmittance = 1.0; // tracks how much background survives all previous absorption
+    uint steps = 0;
+
+    [MaxIters(256)]
+    for (uint i = 0; i < N; i++) {
+        if (t >= tEnd) break;
+        float3 p = ray.origin + t * ray.direction;
+        float3 uvw = (p - volumeBound.pMin) / (volumeBound.pMax - volumeBound.pMin);
+
+        // Sample volume
+        float4 sample = samplePoint3D(data, uvw);
+        // a = density * density_scale * step_size
+        float alpha = sample.w * densityScale * stepSize;
+        // color = (1.0 - alpha) * color + alpha * sample.xyz;
+        // similar to lecture
+        color += transmittance * alpha * sample.xyz;
+        transmittance *= (1.0 - alpha);
+
+        t += stepSize;
+        steps++;
+    }
+
+    return float4(color, 1.0 - transmittance) + (transmittance * backgroundColor);
 
     // TODO: Student implementation ends here.
 }
