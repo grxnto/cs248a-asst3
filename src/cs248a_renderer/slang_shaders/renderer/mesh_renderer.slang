@@ -101,7 +101,14 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
                 // the ray direction of the next bounce.
 
                 // TODO Step 4a: Student implementation starts here.
+                float3 sampledFr = float3(0.0); // reflection
+                float3 sampledDirection = float3(0.0); // direction
+                float sampledPdf = 1.0; // pdf
 
+                SampleBRDFResult brdfSample = sampleBRDF(parameters, rayOut, normal, uniforms, rng);
+                sampledFr = brdfSample.fr;
+                sampledDirection = brdfSample.sampledDirection;
+                sampledPdf = brdfSample.sampledPdf;
                 // TODO Step 4a: Student implementation ends here.
 
                 // NOTE: For Lambertian surfaces, we've just accounted for direct
@@ -113,14 +120,15 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
                 }
 
                 // Step 4a: Sample BRDF for the next bounce.
-
+                
                 // Step 4b: Update the throughput for the next bounce.
                 // Not glass BRDF.
                 if (parameters.brdfType != 2)
                 {
                     // TODO Step 4b: Student implementation starts here.
-                    
-                    throughput *= 0.0;
+                    float cosTheta = dot(normal, sampledDirection); 
+                    // throughput *= fr * cos / pdf
+                    throughput = throughput * (sampledFr * (cosTheta / (sampledPdf + 1e-6)));
                     
                     // TODO Step 4b: Student implementation ends here.
 
@@ -142,7 +150,9 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
 
                 // Step 4c: Update the ray for the next bounce.
                 // TODO Step 4c: Student implementation starts here.
-
+                ray.origin = hitPoint + EPSILON * sampledDirection * EPSILON; 
+                ray.direction = normalize(sampledDirection);
+                ray.tRange = float2(EPSILON, float.maxValue);
                 // TODO Step 4c: Student implementation ends here.
 
                 // TODO: Student implementation ends here.

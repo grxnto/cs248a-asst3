@@ -44,6 +44,14 @@ public struct Triangle : IBoundingBox, IRayCastable
 
         float denom = d00 * d11 - d01 * d01;
 
+        // Handle degenerate case: check if denominator is too small
+        const float EPSILON = 1e-10;
+        if (abs(denom) < EPSILON)
+        {
+            // Degenerate triangle: return centroid
+            return float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0);
+        }
+
         float v = (d11 * d20 - d01 * d21) / denom;
         float w = (d00 * d21 - d01 * d20) / denom;
         float u = 1.0 - v - w;

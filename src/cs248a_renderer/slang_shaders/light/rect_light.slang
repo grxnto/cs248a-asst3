@@ -39,6 +39,19 @@ public struct RectangularLight
         float pdf = 1.0;
 
         // TODO: Student implementation starts here.
+        float3 direction = pointOnLight - hitPoint;
+        float r = length(direction);
+        float3 wi = normalize(direction);
+
+        // Compute cos(theta') using light normal
+        float cosThetaPrime = dot(this.normal, -wi);
+        
+        // Clamp to avoid division by zero or negative values
+        // getRadiance will return 0 if light doesn't face surface
+        cosThetaPrime = max(cosThetaPrime, EPSILON);
+        
+        // Solid angle PDF: p(omega) = r^2 / (A * cos_theta_prime)
+        pdf = (r * r) / (this.area * cosThetaPrime);
 
         // TODO: Student implementation ends here.
 

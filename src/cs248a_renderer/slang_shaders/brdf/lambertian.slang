@@ -38,7 +38,20 @@ public struct LambertianBRDF
         {
             // TODO: Student implementation starts here.
 
-            sampleDirection = sampleDirection;
+            float3 localRayOut = mul(rayOut, worldToLocalMatrix); // world to local
+
+            // spherical coordinate sampling
+            // since local normal = (0,1,0), hemisphere is y >= 0
+            float y = 1- randomEpsilon.x;
+            float r = sqrt(1 - y * y);
+            float theta = 2 * PI * randomEpsilon.y;
+
+            float x = r * cos(theta);
+            float z = r * sin(theta);
+
+            float3 localSampleDirection = float3(x, y, z);
+
+            sampleDirection = mul(localToWorldMatrix, localSampleDirection); // local to world
 
             // TODO: Student implementation ends here.
         }
@@ -63,7 +76,7 @@ public struct LambertianBRDF
         {
             // TODO: Student implementation starts here.
             
-            pdf = pdf;
+            pdf = 1 / TWO_PI;
 
             // TODO: Student implementation ends here.
         }

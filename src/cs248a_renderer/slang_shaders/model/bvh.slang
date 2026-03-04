@@ -112,7 +112,8 @@ public struct BVH<T>
 
             // get a hit of the node's bounding box, if there is a miss or farther than the closest then skip
             float2 bb = node.bound.hit(ray);
-            if (bb.x > bb.y || bb.x > closest) {
+            // Also check if the bounding box intersection is within the ray's valid tRange
+            if (bb.x > bb.y || bb.x > closest || bb.y < ray.tRange.x || bb.x > ray.tRange.y) {
                 continue;
             }  
 

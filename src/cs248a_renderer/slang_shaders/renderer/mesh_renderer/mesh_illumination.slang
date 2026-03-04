@@ -32,6 +32,11 @@ public Ray getShadowRay(LightSample lightSample, float3 hitPoint)
 
     // TODO: Student implementation starts here.
 
+    // Start at x (hitpoint), then shoot the ray towards the light direction
+    // normalize light direction and add epsilon to stop before the light source
+    // slightly perterb the shadow ray so that it doesn't intersect with the surface it is casted from
+    shadowRay.origin = hitPoint;
+    shadowRay.direction = normalize(lightSample.lightDirection);
     // TODO: Student implementation ends here.
 
     return shadowRay;
@@ -44,15 +49,23 @@ public bool isLightOccluded(LightSample lightSample, float3 hitPoint, RendererUn
     // TODO: Student implementation starts here.
 
     // Step 1: Generate the shadow ray
-
+    Ray shadowRay = getShadowRay(lightSample, hitPoint);
     // Step 2: Check if the shadow ray intersects with any rectangular light or mesh.
     // HINT: Check the modified signature of `rayMeshIntersection` function in ray_mesh_intersection.slang.
     // Can you modify it to make it faster for this particular use case?
     // Also, make use of `rayRectangularLightIntersection` function. Check its usage in `mesh_renderer.slang`.
 
-    // TODO: Student implementation ends here.
+
+    const float EPSILON = 1e-2;
+
+    Optional<RayMeshIntersectionResult> meshHit = rayMeshIntersection(shadowRay, uniforms, true);
+    if (meshHit.hasValue) {
+        occluded = true;
+    }
 
     return occluded;
+    // TODO: Student implementation ends here.
+
 }
 
 public float3 evaluateFlashLightContribution(float3 hitPoint, float3 fr, float3 normal, RendererUniform uniforms, float3 rayOut, bool lambertianScattering = false)
@@ -99,7 +112,8 @@ public float3 evaluatePointLightContribution(StructuredBuffer<PointLight> pointL
         // TODO: Student implementation starts here.
 
         // Calculate the fall off factor for point light.
-
+        float distance = lightSample.lightDistance;
+        fallOffFactor = distance * distance;
         // TODO: Student implementation ends here.
 
         float3 sampleIrradiance = getSampleIrradiance(lightSample, normal, lambertianScattering, fallOffFactor);
@@ -263,12 +277,66 @@ public SampleBRDFResult sampleBRDF(PhysicsBasedParameters parameters, float3 ray
 
             // Naive Glass BRDF sampling without Fresnel effect.
             GlassBRDF brdf = GlassBRDF(parameters.albedo, parameters.ior);
-            fr = brdf.evaluate();
-            sampledDirection = brdf.sample(rayOut, normal);
-            float glassPdf = brdf.pdf(sampledDirection, rayOut, normal);
-            // Account for the probability of choosing glass in the overall PDF
-            sampledPdf = glassPdf;
 
+            // Local space transform
+            float3x3 worldToLocalMatrix = getWorldToLocalMatrix(normal, rayOut);
+            float3x3 localToWorldMatrix = transposeMatrix(worldToLocalMatrix);
+            float3 localRayOut = mul(worldToLocalMatrix, rayOut);
+            float3 localNormal = float3(0.0, 1.0, 0.0);
+
+            // Determine entering / exiting
+            bool entering = localRayOut.y > 0.0;
+
+            float n1, n2;
+            if (entering)
+            {
+                n1 = 1.0;
+                n2 = parameters.ior;
+            }
+            else
+            {
+                n1 = parameters.ior;
+                n2 = 1.0;
+                localNormal = -localNormal;
+            }
+
+            float eta = n1 / n2;
+
+            // this is cos^2(theta) of the refracted ray
+            float k = 1.0 - eta * eta * (1.0 - dot(localRayOut, localNormal) * dot(localRayOut, localNormal));
+
+            float3 localIn;
+            if (k < 0.0) {
+                // Total internal reflection
+                localIn = reflect(-localRayOut, localNormal); 
+                sampledDirection = normalize(mul(localToWorldMatrix, localIn));
+                fr = brdf.evaluate();
+                sampledPdf = 1.0;
+            } else {
+                // Refraction with Fresnel
+
+                // r = ((n1 - n2) / (n1 + n2))^2
+                float r = pow((n1 - n2) / (n1 + n2), 2);
+                // f = r + (1 - r) * (1 - cos(theta))^5
+                float f = r + (1.0 - r) * pow(1.0 - dot(localRayOut, localNormal), 5.0);
+
+                float rand = rng.next_1d();
+
+                if (rand < f) {
+                    // Reflect
+                    localIn = reflect(-localRayOut, localNormal); 
+                    sampledDirection = normalize(mul(localToWorldMatrix, localIn));
+                    fr = brdf.evaluate();
+                    sampledPdf = f;
+                } else {
+                    // Refract
+                    localIn = refract(-localRayOut, localNormal, eta);
+                    sampledDirection = normalize(mul(localToWorldMatrix, localIn));
+                    fr = brdf.evaluate();
+                    sampledPdf = 1.0 - f;
+
+                }
+            }
             // TODO: Student implementation ends here.
         }
         else

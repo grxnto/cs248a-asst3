@@ -42,9 +42,16 @@ public Optional<RayMeshIntersectionResult> rayMeshIntersection(Ray ray, Renderer
         Optional<BVH<Triangle>.HitResult> bvh_hit = uniforms.bvh.hit(ray);
 
         if (bvh_hit.hasValue) {
-            closest = bvh_hit.value.rayHitResult.t;
-            result = Optional<RayHitResult>(bvh_hit.value.rayHitResult);
-            hitTriangle = Optional<Triangle>(bvh_hit.value.primitive);
+            float tHit = bvh_hit.value.rayHitResult.t;
+            if (tHit >= ray.tRange.x && tHit <= ray.tRange.y) {
+                if (occlusionTest) {
+                    return Optional<RayMeshIntersectionResult>(RayMeshIntersectionResult(
+                            bvh_hit.value.rayHitResult, bvh_hit.value.primitive));
+                }
+                closest = tHit;
+                result = Optional<RayHitResult>(bvh_hit.value.rayHitResult);
+                hitTriangle = Optional<Triangle>(bvh_hit.value.primitive);
+            }
         }
     } 
     else {
@@ -52,10 +59,18 @@ public Optional<RayMeshIntersectionResult> rayMeshIntersection(Ray ray, Renderer
             Triangle triangle = uniforms.triangleBuf[i];
             Optional<RayHitResult> triangle_hit = triangle.hit(ray);
 
-            if (triangle_hit.hasValue && triangle_hit.value.t < closest) {
-                closest = triangle_hit.value.t;
-                result = Optional<RayHitResult>(triangle_hit.value);
-                hitTriangle = Optional<Triangle>(triangle);
+            if (triangle_hit.hasValue) {
+                float tHit = triangle_hit.value.t;
+                if (tHit >= ray.tRange.x && tHit <= ray.tRange.y) {
+                    if (occlusionTest) {
+                        return Optional<RayMeshIntersectionResult>(RayMeshIntersectionResult(triangle_hit.value, triangle));
+                    }
+                    if (tHit < closest) {
+                        closest = tHit;
+                        result = Optional<RayHitResult>(triangle_hit.value);
+                        hitTriangle = Optional<Triangle>(triangle);
+                    }
+                }
             }
         }
     }
